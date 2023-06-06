@@ -130,7 +130,9 @@ fulleducation<-full_join(fulleducation,Brazil2060,by=join_by(scenario,age, educa
   ungroup() %>% 
   mutate(prjpropfinal = 100*prjprop/prjproptot)%>% 
   select(scenario,age,sex,education,area,state,region,year,prjpropfinal)
-  
+write_csv(fulleducation, "data/education/education2015_60.csv")
+
+############### plots ########################
 
 ##main results in 2 plots - sex
 #male
@@ -213,8 +215,6 @@ Brazil %>%
         panel.grid.major.y = element_line(linetype = "dashed"))
   
 ######### some analysis and plots - 1991 to 2010. Brazil data only.
-
-
 #reframe to edu values by states and sex
 pop1991_2010a <- pop1991_2010 %>% 
   group_by(area,state, region,year,sex,edu) %>% 
