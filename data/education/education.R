@@ -121,8 +121,7 @@ Brazil2010 <- Brazil %>%
 fulleducation<- full_join(Brazil2010,eduproportions, by=join_by(age, education,sex), multiple="all") %>% 
   mutate(ql = case_when(age=="15" & education=="e6"~0, TRUE~propBR/prop))
 #join files and calculate for every year.
-Brazil2060 <- Brazil %>% 
-  filter(year!=2010)
+Brazil2060 <- Brazil
 fulleducation<-full_join(fulleducation,Brazil2060,by=join_by(scenario,age, education,sex), multiple="all") %>% 
   mutate(prjprop = ql*prop.y) %>% 
   group_by(scenario,age,sex,state,year) %>% 
@@ -130,7 +129,7 @@ fulleducation<-full_join(fulleducation,Brazil2060,by=join_by(scenario,age, educa
   ungroup() %>% 
   mutate(prjpropfinal = 100*prjprop/prjproptot)%>% 
   select(scenario,age,sex,education,area,state,region,year,prjpropfinal)
-write_csv(fulleducation, "data/education/education2015_60.csv")
+write_csv(fulleducation, "data/education/education2010_60.csv")
 
 ############### plots ########################
 
