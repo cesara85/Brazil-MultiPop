@@ -1,11 +1,11 @@
-setwd("C:/Cesar/Bolsa Produtividade/Projecoes/gitbrazil/Brazil-Multistate-projections")
+# setwd("C:/Cesar/Bolsa Produtividade/Projecoes/gitbrazil/Brazil-Multistate-projections")
 
 {
   
   regions = paste0(c(11,12,13,14,15,16,17,21,22,23,24,25,26,27,28,29,31,32,33,35,41,42,43,50,51,52,53))
   regions.nm = regions   #get the real name (without space)
   names(regions)=regions.nm
-  save(regions,file = "data/regions.rda")
+  save(regions,file = "../data/regions.rda")
   
   nreg = length(regions)#27
   
@@ -269,7 +269,7 @@ if(iscen!="baseline"){
   # propdt
   for(i in "srb"){ #srbdt
     # stop()
-    vardims[i,]
+    # vardims[i,]
     xxxdt <- expand.grid(region=regions,Time=pers[-length(pers)],stringsAsFactors=F)
     setDT(xxxdt)
     xxdtname <- paste(i,"dt",sep="")
@@ -279,9 +279,9 @@ if(iscen!="baseline"){
   
   for(ifile in dttosave) {
     xx <- get(ifile)
-    xx[,value:=NA]
+    # xx[,value:=NA]
     # write.csv(xx[,value:=NA],file = paste0(path_scen,ifile,".csv"))
-   write.csv(xx[,value:=NA],file = paste0(path_scen,"fill_",ifile,".csv")) #once you fill it.. called it filled_asfrdt (for e.g.)
+   write.csv(xx,file = paste0(path_scen,"fill_",ifile,".csv")) #once you fill it.. called it filled_asfrdt (for e.g.)
   }
   
 }# fertmys or baseline
