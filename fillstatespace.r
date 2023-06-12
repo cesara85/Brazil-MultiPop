@@ -4,12 +4,12 @@ library(magrittr)
 # [1] "sxdt"   "asfrdt" "emrdt" "imrdt"  "idmrdt" (in) "odmrdt" (out) "popdt"  "propdt" "srbdt"  
 
 ### files with data
-read_csv("data/population/popdt2.csv")
-read_csv("data/mortality/sxdt2.csv")
-read_csv("data/fertility/asfrdt2.csv")
-read_csv("data/education/propdt2.csv")
-read_csv("data/migration/idmrdt2.csv")
-read_csv("data/migration/odmrdt2.csv")
+# read_csv("../data/population/popdt2.csv")
+# read_csv("../data/mortality/sxdt2.csv")
+# read_csv("../data/fertility/asfrdt2.csv")
+# read_csv("../data/education/propdt2.csv")
+# read_csv("../data/migration/idmrdt2.csv")
+# read_csv("../data/migration/odmrdt2.csv")
 
 
 if(F) {#newSSP
@@ -56,7 +56,7 @@ id.cols <- names(popdt)[1:5]
   
 # base-year population to be update to 2015
 #popdt
-data1<-read_csv("data/population/brazil_pop_2010.csv")
+data1<-read_csv("../data/population/brazil_pop_2010.csv")
 data1 %<>%
   separate(age, c("agest", "end")) %>% mutate(agest = as.numeric(agest)) %>% 
   mutate(edu = case_when(agest==0~"e1",
@@ -70,37 +70,21 @@ data1 %<>%
   mutate(Time = 2010) %>%
   rename(region = area) %>% mutate(region = as.character(region)) %>% 
   select(region, Time, sex, edu, agest, pop)
-popdt2<-full_join(popdt, data1)
-write_csv(popdt2,"data/population/popdt2.csv")
+popdt<-full_join(popdt, data1)
+#check
+# popdt[agest==20]
+write_csv(popdt,"../data/population/popdt_filled.csv")
 
-################## not used 
-setDT(data1)
-    # data1[,table(var)]
-    # data1%>%filter(period==2015,sex=="female",age==15,var=="pop")%>%select(edu,cc108)%>%
-    #   mutate(prop=prop.table(cc108))
-    
-    #reg instead of cc #Time; sex m-f; edu e1-6; agest -5,0,5 statespace] - 2010 means 2011
-    input <- data1[,setnames(.SD,c("period","age"),c("Time","agest"))][Time==2010&var=="pop"][,var:=NULL]
-    input <- melt(input,id.vars = names(input)[1:4],variable.name = "region",value.name="pop")[
-      ,`:=`(sex=substr(sex,1,1),Time = 2011)]
-    
-    # check for 70
-    # xx <- unique(input$region)
-    # length(intersect(xx,regions))
-    
-    id.cols.here <- intersect(id.cols,names(popdt))
-    popdt[,pop:=-.00009][input,  pop:=i.pop, on = id.cols.here]
-    
-    #check (currently for 2011)
-    popdt[Time==2011&agest==15]%>%spread(edu,pop)
-    popdt[pop>0,sum(pop)]#1,210,827,147
-    popdt[pop<0,table(agest,Time)]#
-    popdt[agest==70&Time==2011&region=="IN.RJ_rural",.(agest,sex,edu,Time,pop)]
 
 # sxdt --------------------------------------------------------------------
 #eduspecific nsx
-data2<-read_csv("data/mortality/full_mortality_2010-2060.csv")
-data2 %<>%
+sx_input<-read_csv("../data/mortality/full_mortality_2010-2060.csv")
+setDT(sx_input)
+# sx_input[sex=="male"&area=="RO"&period==2010&scenario==2&edu=="e1"]
+sx_input[age==0,age:=-5][age==1,age:=0]
+# sx_input[sex=="male"&area=="RO"&period==2010&scenario==2&edu=="e1"]
+
+sx_input %<>%
   filter(scenario == 2) %>% 
   mutate(region = case_when(area=="RO"~11,area=="AC"~12,area=="AM"~13,area=="RR"~14,area=="PA"~15,area=="AP"~16,area=="TO"~17,
                             area=="MA"~21,area=="PI"~22,area=="CE"~23,area=="RN"~24,area=="PB"~25,area=="PE"~26,area=="AL"~27,area=="SE"~28,area=="BA"~29,
@@ -111,25 +95,26 @@ data2 %<>%
   rename(Time = period) %>% rename(agest=age) %>% 
   mutate(region = as.character(region)) %>% 
       select(region, Time, sex, edu, agest, nSx)
-sxdt2<-full_join(sxdt,data2)
-sxdt2 %<>%
+
+sxdt<-full_join(sxdt,sx_input)
+sxdt %<>%
   mutate(nSx = case_when(nSx>=1~1.0000, TRUE~nSx))
 
-write_csv(sxdt2,"data/mortality/sxdt2.csv")
+write_csv(sxdt,"../data/mortality/sxdt_filled.csv")
 
 # asfrdt ------------------------------------------------------------------
 
-data3<-read_csv("data/fertility/ASFR2010_2060.csv")
-data3 %<>%
+asfr_input<-read_csv("../data/fertility/ASFR2010_2060.csv")
+asfr_input %<>%
   separate(age, c("agest", "end")) %>% mutate(agest = as.numeric(agest)) %>% 
   rename(Time = period) %>% 
   mutate(region = as.character(area)) %>% 
   mutate(asfr=asfr*1000) %>% 
   select(region, Time, edu, agest, asfr)
 
-asfrdt2<-full_join(asfrdt,data3)
-
-write_csv(asfrdt2,"data/fertility/asfrdt2.csv")
+asfrdt<-full_join(asfrdt,asfr_input)
+# asfrdt[region==11&Time==2010&edu=="e1"][,sum(asfr)/200]#tfr
+write_csv(asfrdt,"../data/fertility/asfrdt_filled.csv")
 
     # #Note: for the first few periods, population by mother's edu is not available
     # #asfrs (7)
@@ -145,73 +130,43 @@ write_csv(asfrdt2,"data/fertility/asfrdt2.csv")
     # xx <- unique(input$region)
     # length(intersect(xx,regions))
     
-    #Run it once independently
-    # if(F) source("india fertility pnas scenarios, v3.R")
-    if(F) source("fertility calc.r") #independingly run
-    input <- read.csv(paste("../data/fertility/ASFR pattern 1 final 20230404.csv",sep="")) #830: added India and a correction in e1_e4 (pred1 was there instead of pred1.4m)
-    setDT(input)
-    input[,area:=stcodes$HASC[match(area,tolower(stcodes$area0))]][
-      ,region:=paste0(area,"_",tolower(residence))
-    ][,Time:=yr-2.5][,agest:=age-2.5][,sex:="f"]
-    id.cols.here <- intersect(id.cols,names(popdt))
-    asfrdt[,asfr:=-999][input,  asfr:=i.asfr, on = id.cols.here]
-    #check (currently for 2011)
-    # input[agest==15&region=="IN.AN_urban",.(agest,sex,edu,Time,asfr)]
-    # popdt[agest==15&Time==2011&region=="IN.AN_rural",.(agest,sex,edu,Time,pop)]
-    
     #fert ssp correction
-    issp.fert.var <- ssp.var[ssp==substr(SSP.name,4,4),.(region,fert)]
+    if(F){issp.fert.var <- ssp.var[ssp==substr(SSP.name,4,4),.(region,fert)]
     setnames(issp.fert.var,"fert", "variant")
     
     asfrdt[issp.fert.var,on=.(region),variant:=variant][
       fert.var,on=.(Time,variant),asfr:=asfr*ssp.adj][
         ,`:=`(variant=NULL)]     
-    
-    #srb 
-    # srbdt ??think about changing srb for Indian states.. [Fengqing Chao, KC...]
-    data1[,unique(var)]
-    input <- data1%>%
-      filter(var=="sexr")%>%
-      gather(region,srb,contains("_"))%>%select(-var)%>%
-      mutate(sex=substr(sex,1,1))%>%select(region,srb)
-    setDT(input)
-    
-    # head(input)
-    srbdt[,srb:=-999][setDT(input), srb := 1000/i.srb, on = .(region)]
-    #no sex differentials!!
-    
-    fun.srbdt <- function(df1){
-      df1 <<- df1
-      # stop()
-      srbcorr = (1.05 - df1$srb[1]) / 8
-      srbcorr = c(0,c(1:8,rep(8,9))*srbcorr)
-      df2 <- copy(df1)[, srb := srb + srbcorr]
-      return(df2)
     }
-    srbdt <- srbdt[,by=.(region),fun.srbdt(.SD)]
-    #check for constant values
-    srbdt%>%spread(region,srb)
+
+    #srb 
+    #srbdt 
+    srbdt <- srbdt[,srb:=1.05] #check this with the UN values
     
 # propdt ------------------------------------------------------------------
-
-data4<-read_csv("data/education/education2010_60.csv")
-data4 %<>%
+prop_input<-read_csv("../data/education/education2010_60.csv")
+    prop_input %<>%
   filter(scenario==2) %>% 
   mutate(sex= case_when(sex=="Female"~"f", sex=="Male"~"m")) %>% 
   rename(agest=age) %>% mutate(agest = as.numeric(agest)) %>% 
   rename(Time = year) %>% 
   rename(edu = education) %>% 
-  mutate(region = as.character(area)) %>% 
+  mutate(region = as.character(area),prjpropfinal =prjpropfinal/100 ) %>% 
   select(region, Time, sex, edu, agest, prjpropfinal)
-propdt2<-full_join(propdt,data4)
+setDT(prop_input)
 
-write_csv(propdt2,"data/education/propdt2.csv")
+# prop_input[,by=.(region,Time,sex,agest),sum(prjpropfinal)][V1!=1][,V1]
+
+propdt<-full_join(propdt,prop_input)
+
+
+write_csv(propdt,"../data/education/propdt_filled.csv")
 
 
 # migration ---------------------------------------------------------------
-data5<-read_csv("data/migration/full_mig_2060.csv")
+mig_input<-read_csv("../data/migration/full_mig_2060.csv")
 
-data5 %<>%
+mig_input %<>%
   mutate(region = case_when(area=="RO"~11,area=="AC"~12,area=="AM"~13,area=="RR"~14,area=="PA"~15,area=="AP"~16,area=="TO"~17,
                             area=="MA"~21,area=="PI"~22,area=="CE"~23,area=="RN"~24,area=="PB"~25,area=="PE"~26,area=="AL"~27,area=="SE"~28,area=="BA"~29,
                             area=="MG"~31,area=="ES"~32,area=="RJ"~33,area=="SP"~35,
@@ -229,21 +184,18 @@ data5 %<>%
   mutate(region = as.character(region)) %>% 
   select(region, Time, sex, edu, agest, prop_in, prop_out, inmigfinal, outmigfinal)
 
-idmrdt2 <- full_join(idmrdt, data5) %>% #ATTENTION: PROPORTIONS OF MIGRANTS RELATED TO THE TOTAL OF THE AREA. NOT MIGRATION RATES!
+idmrdt <- full_join(idmrdt, mig_input) %>% #ATTENTION: PROPORTIONS OF MIGRANTS RELATED TO THE TOTAL OF THE AREA. NOT MIGRATION RATES!
   select(region, Time, sex, edu, agest, prop_in, inmigfinal)
+idmrdt[is.na(inmigfinal),inmigfinal:=0]
 
-odmrdt2 <- full_join(odmrdt, data5) %>% #ATTENTION: PROPORTIONS OF MIGRANTS RELATED TO THE TOTAL OF THE AREA. NOT MIGRATION RATES!
+odmrdt <- full_join(odmrdt, mig_input) %>% #ATTENTION: PROPORTIONS OF MIGRANTS RELATED TO THE TOTAL OF THE AREA. NOT MIGRATION RATES!
   select(region, Time, sex, edu, agest, prop_out, outmigfinal)
+odmrdt[is.na(outmigfinal),outmigfinal:=0]
 
-write_csv(idmrdt2,"data/migration/idmrdt2.csv")
-write_csv(odmrdt2,"data/migration/odmrdt2.csv")
 
-    
+write_csv(idmrdt,"../data/migration/idmrdt_filled.csv")
+write_csv(odmrdt,"../data/migration/odmrdt_filled.csv")
 
-    #SSPs
-    
-    
-  
     # NON Baseline ------------------------------------------------------------
     
     
