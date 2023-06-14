@@ -47,5 +47,5 @@ source("statespace.r")#empty if baseline is F, then the statespace can already t
 source("fillstatespace.r")#
 
 #transitions
-source("main indproj V1.r")
+source("projection V1.r")
 # See "Report WIC3.Rmd"
