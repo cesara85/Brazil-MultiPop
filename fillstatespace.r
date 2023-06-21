@@ -77,30 +77,29 @@ write_csv(popdt,"../data/population/popdt_filled.csv")
 
 
 # sxdt --------------------------------------------------------------------
-#eduspecific nsx
-sx_input<-read_csv("../data/mortality/full_mortality_2010-2060.csv")
+##eduspecific nsx
+ 
+#eduspecific nsx v2 
+sx_input<-read_csv("../data/mortality/mortality_brazil_nSx.csv")
 setDT(sx_input)
 # sx_input[sex=="male"&area=="RO"&period==2010&scenario==2&edu=="e1"]
 sx_input[age==0,age:=-5][age==1,age:=0]
 # sx_input[sex=="male"&area=="RO"&period==2010&scenario==2&edu=="e1"]
 
 sx_input %<>%
-  filter(scenario == 2) %>% 
   mutate(region = case_when(area=="RO"~11,area=="AC"~12,area=="AM"~13,area=="RR"~14,area=="PA"~15,area=="AP"~16,area=="TO"~17,
                             area=="MA"~21,area=="PI"~22,area=="CE"~23,area=="RN"~24,area=="PB"~25,area=="PE"~26,area=="AL"~27,area=="SE"~28,area=="BA"~29,
                             area=="MG"~31,area=="ES"~32,area=="RJ"~33,area=="SP"~35,
                             area=="PR"~41,area=="SC"~42,area=="RS"~43,
                             area=="MS"~50,area=="MT"~51,area=="GO"~52,area=="DF"~53)) %>% 
   mutate(sex= case_when(sex=="female"~"f", sex=="male"~"m")) %>% 
-  rename(Time = period) %>% rename(agest=age,sx=nSx) %>% 
+  rename(Time = year) %>% rename(agest=age,sx=nSx) %>% 
   mutate(region = as.character(region)) %>% 
-      select(region, Time, sex, edu, agest, sx)
+  mutate(e1="e1",e2="e2",e3="e3",e4="e4",e5="e5",e6="e6") %>% 
+  pivot_longer(cols = (e1:e6), names_to = "edu", values_to = "edu2")%>% 
+  select(region, Time, sex, edu, agest, sx)
+sxdt <- sx_input
 
-sxdt<-full_join(sxdt,sx_input)
-sxdt %<>%
-  mutate(sx = case_when(sx>=1~1.0000, TRUE~sx))
-
-write_csv(sxdt,"../data/mortality/sxdt_filled.csv")
 
 # asfrdt ------------------------------------------------------------------
 

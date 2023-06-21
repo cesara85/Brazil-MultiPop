@@ -82,8 +82,8 @@ ireg = regions;{ #to run for all regions at the same time
         print(final.summ)
         print(final.summ)
         
-        print("UP rural")
-        final.reg.summ <-final.temp[region=="IN.UP_urban",lapply(.SD,sum),.SDcols = vars,by=.(Time)
+        print("35")
+        final.reg.summ <-final.temp[region=="35",lapply(.SD,sum),.SDcols = vars,by=.(Time)
                                     ][,pop1:=pop+births-deaths][,stage:="sx_eduprop"]
         print(final.reg.summ)
         print(final.reg.summ)
@@ -104,16 +104,21 @@ ireg = regions;{ #to run for all regions at the same time
     #-5 to be added to newborns
     # stop("xxxa;'dsflkj")   
     pop.origin = copy(final.temp)[agest>-5&agest<=75,.(region,Time,sex,edu,agest,pop1)]
-      
-       dom.iper <- copy(migOD_AG)[,Time:=iper][dom.ssp, on=.(Time,region),mrate.pred := mrate.pred * ssp.adj]
+       migOD_AG = pop.origin #added
+       migOD_AG[,dom.ssp:=1]#added
+       migOD_AG[,mrate.pred:=0] #added
+       migOD_AG[,ssp.adj:=1] #added
+       dom.iper <- copy(migOD_AG)[,Time:=iper][dom.ssp==1, on=.(Time,region),mrate.pred := mrate.pred * ssp.adj] #international migration not used
        
        dom.temp = merge(pop.origin,dom.iper,allow.cartesian=TRUE)
        dom.temp[,odom:=pop1*mrate.pred]
-       dom.temp[,sum(odom)]
+       dom.temp[,sum(odom)] #check = international migration equal to zero
        
-       odom.temp <- copy(dom.temp)[,by=.(Time,region,sex,agest,edu),.(odom=sum(.SD$odom))]
-       idom.temp <- copy(dom.temp)[,by=.(Time,dest,sex,agest,edu),.(idom=sum(.SD$odom))
-                                   ][,setnames(.SD,"dest","region")]
+       odom.temp <- copy(odmrdt)[,by=.(Time,region,sex,agest,edu),.(odom=sum(.SD$outmigfinal))]
+       ###idom.temp <- copy(dom.temp)[,by=.(Time,dest,sex,agest,edu),.(idom=sum(.SD$odom))
+       ###                           ][,setnames(.SD,"dest","region")] #take destination out. Just considering. #line below used instead.
+       idom.temp <- copy(idmrdt)[,by=.(Time,region,sex,agest,edu),.(idom=sum(.SD$inmigfinal))]
+       
        
        final.temp[odom.temp,on=id.cols,odom:=i.odom]
        final.temp[idom.temp,on=id.cols,idom:=i.idom]
@@ -129,8 +134,8 @@ ireg = regions;{ #to run for all regions at the same time
       final.summ = rbind(final.summ,final.summX)
       print(final.summ)
       
-      print("UP rural")
-      final.reg.summX <-final.temp[region=="IN.UP_urban"][,lapply(.SD,sum),.SDcols = vars,by=.(Time)][,stage:="mig"]
+      print("35")
+      final.reg.summX <-final.temp[region=="35"][,lapply(.SD,sum),.SDcols = vars,by=.(Time)][,stage:="mig"]
       final.reg.summ = rbind(final.reg.summ,final.reg.summX)
       print(final.reg.summ)
    }
@@ -156,9 +161,9 @@ ireg = regions;{ #to run for all regions at the same time
     final.summ = rbind(final.summ,final.summX)
     print(final.summ)
     
-    print("UP rural")
+    print("35")
     
-    final.reg.summX <-final.temp[region=="IN.UP_urban"][,lapply(.SD,sum),.SDcols = vars,by=.(Time)][,pop1:=pop+births-deaths][,stage:="births"]
+    final.reg.summX <-final.temp[region=="35"][,lapply(.SD,sum),.SDcols = vars,by=.(Time)][,pop1:=pop+births-deaths][,stage:="births"]
     final.reg.summ = rbind(final.reg.summ,final.reg.summX)
     print(final.reg.summ)
     
@@ -185,8 +190,8 @@ ireg = regions;{ #to run for all regions at the same time
     final.summ = rbind(final.summ,final.summX)
     print(final.summ)
     
-    print("UP Urban")
-    final.reg.summX <-final.temp[region=="IN.UP_urban"][,lapply(.SD,sum),.SDcols = vars,by=.(Time)][,pop1:=pop+births-deaths][,stage:="births"]
+    print("35")
+    final.reg.summX <-final.temp[region=="35"][,lapply(.SD,sum),.SDcols = vars,by=.(Time)][,pop1:=pop+births-deaths][,stage:="births"]
     final.reg.summ = rbind(final.reg.summ,final.reg.summX)
     print(final.reg.summ)
   }
@@ -197,7 +202,7 @@ ireg = regions;{ #to run for all regions at the same time
 
   #Update the final with pop1, births, mig, edu transition
   final[copy(final.temp),on=id.cols,
-        `:=`(deaths=i.deaths,births=i.births,imm=i.imm,emi=i.emi,odom=i.odom,idom=i.idom,edutran=i.edutran,poprecl=i.poprecl)] #new
+        `:=`(deaths=i.deaths,births=i.births,imm=i.imm,emi=i.emi,odom=i.odom,idom=i.idom,edutran=i.edutran)] #new - without popclass
   
   
   #End of the period age and Time
@@ -218,8 +223,8 @@ ireg = regions;{ #to run for all regions at the same time
     final.summ = rbind(final.summ,final.summX)
     print(final.summ)
     
-    print("UP Urban")
-    final.reg.summX <-final.temp[region=="IN.UP_urban"][,lapply(.SD,sum),.SDcols = vars,by=.(Time)][,pop1:=pop+births-deaths][,stage:="reclass"]
+    print("35")
+    final.reg.summX <-final.temp[region=="35"][,lapply(.SD,sum),.SDcols = vars,by=.(Time)][,pop1:=pop+births-deaths][,stage:="reclass"]
     final.reg.summ = rbind(final.reg.summ,final.reg.summX)
     print(final.reg.summ)
     }
