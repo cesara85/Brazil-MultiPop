@@ -149,10 +149,10 @@ ireg = regions;{ #to run for all regions at the same time
       print(final.reg.summ)
    }
   
-  stop("..")
-  final.temp[region==22 & agest==5 &sex=="f",]
-  final.temp[region==22 & agest==5&sex=="f",.(sum(pop),sum(pop1),sum(deaths),sum(edutran),sum(idom),sum(odom))]
-  
+  # stop("..")
+  # final.temp[region==22 & agest==5 &sex=="f",]
+  # final.temp[region==22 & agest==5&sex=="f",.(sum(pop),sum(pop1),sum(deaths),sum(edutran),sum(idom),sum(odom))]
+  # 
    
   #births
   birthsx <- final.temp[sex=="f"][,`:=`(odom=NULL,idom=NULL,emi=NULL,imm=NULL,edutran=NULL,sex=NULL,sx=NULL)][,#this are still empty
@@ -284,6 +284,9 @@ for(ifile in dttosave) {
 final[region==11 & agest==10&Time == 2010 &sex=="f",sum(edutran)]
 
 final[pop<0 & Time == 2015]
+
+
+final[Time==2015,by=.(agest),.(pop=sum(pop))]
 
 
 #quick pyramid
