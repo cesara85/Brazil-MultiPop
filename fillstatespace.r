@@ -100,7 +100,7 @@ sx_input %<>%
   select(region, Time, sex, edu, agest, sx)
 sxdt <- sx_input
 
-
+setDT(sxdt)
 # asfrdt ------------------------------------------------------------------
 
 asfr_input<-read_csv("../data/fertility/ASFR2010_2060.csv")

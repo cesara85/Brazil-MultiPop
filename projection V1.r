@@ -50,7 +50,7 @@ ireg = regions;{ #to run for all regions at the same time
     # sxdt[region==11&Time==2010&sex=="m"&agest==10]%>%spread(edu,sx)
     
     final.temp <- final.temp[sxdt,on=id.cols,`:=`(sx=sx,pop1=pop*sx,deaths=pop*(1-sx))]
-    # final.temp[,sum(deaths)] #5,703,752 2010-2015 deaths
+    # final.temp[,sum(deaths)] #6,303,396 2010-2015 deaths
     # final.temp[is.na(pop1)]
     # final.temp[region=="IN.BR_rural"&agest==0]
     if(iper < 2025) print("take care of sx edu") #we have to apply overall sx for under 15
@@ -62,12 +62,19 @@ ireg = regions;{ #to run for all regions at the same time
       ,`:=`(Time=Time-5,agest=agest-5)][prop<0,prop:=0.001][
       ,.(edu=edu,prop=prop.table(prop)),by=setdiff(id.cols,"edu")]
 
-      # xx <- final.temp[sex=="f"&agest==15,.(edu,pop)][,prop:=prop.table(.SD$pop)]
+    #check
+    # ieduprop[,by=.(region,sex,agest),sum(prop)][,V1]
+     # ieduprop%>%spread(edu,prop)
+    
+     # xx <- final.temp[sex=="f"&agest==15,.(edu,pop)][,prop:=prop.table(.SD$pop)]
     
     #agr pop 
     pop1agr <- copy(final.temp)[agest%in%10:25][,.(pop1=sum(pop1)),by=setdiff(id.cols,"edu")]
+    pop1agr[,sum(pop1)]#67,988,027
     #merge
     ieduprop[pop1agr,on=setdiff(id.cols,"edu"),`:=`(pop1=pop1*prop)]
+    ieduprop[,sum(pop1)]#67,988,027
+    
     #check (0.9999??)
     #bring pop1edu into pop1 (update)    
     final.temp[ieduprop,on=id.cols,`:=`(pop1=i.pop1,
@@ -91,6 +98,9 @@ ireg = regions;{ #to run for all regions at the same time
        }
     # Time       pop births      pop1 idom odom emi imm       edutran  deaths       sx      stage
     # 1: 2010 190755799      0 185052047    0    0   0   0 -1.442459e-09 5703752 5733.327 sx_eduprop
+    
+    
+    
     
   #emig0 means use given education-specific migration rate
   #Here in any case - we need to adjust for scenarios + net0 
@@ -125,7 +135,6 @@ ireg = regions;{ #to run for all regions at the same time
      }   
      
     
-    
   final.temp[,pop1:=pop1-emi+imm-odom+idom]
    # copy(final.temp)[,.(corr = sum(emi)/sum(imm))]
    if(icheck) { 
@@ -139,8 +148,12 @@ ireg = regions;{ #to run for all regions at the same time
       final.reg.summ = rbind(final.reg.summ,final.reg.summX)
       print(final.reg.summ)
    }
+  
+  stop("..")
+  final.temp[region==22 & agest==5 &sex=="f",]
+  final.temp[region==22 & agest==5&sex=="f",.(sum(pop),sum(pop1),sum(deaths),sum(edutran),sum(idom),sum(odom))]
+  
    
-     
   #births
   birthsx <- final.temp[sex=="f"][,`:=`(odom=NULL,idom=NULL,emi=NULL,imm=NULL,edutran=NULL,sex=NULL,sx=NULL)][,#this are still empty
       `:=`(popavg=.5*(.SD$pop+shift(.SD$pop1,1,NA,"lag"))),by = .(region,edu)] [,
@@ -163,12 +176,13 @@ ireg = regions;{ #to run for all regions at the same time
     
     print("35")
     
-    final.reg.summX <-final.temp[region=="35"][,lapply(.SD,sum),.SDcols = vars,by=.(Time)][,pop1:=pop+births-deaths][,stage:="births"]
+    final.reg.summX <-final.temp[region=="35"][,lapply(.SD,sum),.SDcols = vars,by=.(Time)
+                                               ][,pop1:=pop+births-deaths][,stage:="births"]
     final.reg.summ = rbind(final.reg.summ,final.reg.summX)
     print(final.reg.summ)
     
   } 
-  
+    
   #total births (by edu and sex) will be added to the -5 at final.temp initime
   birthstot = birthsx[,.(pop=sum(births)),by=setdiff(id.cols,"agest")][,agest:=-5]
   
@@ -185,18 +199,19 @@ ireg = regions;{ #to run for all regions at the same time
   #check this..
 
   if(icheck) {
-    final.summX <-final.temp[agest>-5][,lapply(.SD,sum),.SDcols = vars,by=.(Time)
-    ][,pop1:=pop+births-deaths][,stage:="births"]
+    final.summX <-final.temp[,lapply(.SD,sum),.SDcols = vars,by=.(Time)
+    ][,pop1:=pop-deaths][,pop:=pop-births][,stage:="sxbirths"]
     final.summ = rbind(final.summ,final.summX)
     print(final.summ)
     
     print("35")
-    final.reg.summX <-final.temp[region=="35"][,lapply(.SD,sum),.SDcols = vars,by=.(Time)][,pop1:=pop+births-deaths][,stage:="births"]
+    final.reg.summX <-final.temp[region=="35"
+          ][,lapply(.SD,sum),.SDcols = vars,by=.(Time)
+            ][,pop1:=pop-deaths][,pop:=pop-births][,stage:="sxbirths"]
     final.reg.summ = rbind(final.reg.summ,final.reg.summX)
     print(final.reg.summ)
   }
-
-
+  # if(iper == 2020) stop("..")
   #add in final total births initime age -5
   final[copy(birthstot),on=id.cols,`:=`(pop=i.pop)] #pop1 will be updated later
 
@@ -208,7 +223,7 @@ ireg = regions;{ #to run for all regions at the same time
   #End of the period age and Time
   #prepare for the next year [5+]
   final.temp.end<-copy(final.temp)[,`:=`(Time=Time+ts,agest=agest+ts,pop=pop1,pop1=NULL)]
-  final.temp.end[agest>=120,agest:=120][,pop:=sum(pop),by=id.cols]
+  final.temp.end[agest>=95,agest:=95][,pop:=sum(pop),by=id.cols]
   
   # final.temp[,sum(pop)]
   # final.temp.end[,sum(pop)]
@@ -216,18 +231,11 @@ ireg = regions;{ #to run for all regions at the same time
   #add end of the year population to the final
   final[final.temp.end,on=id.cols,`:=`(pop = i.pop)]
   
-  if(icheck){
-
-    final.summX <-final.temp[agest>-5][,lapply(.SD,sum),.SDcols = vars,by=.(Time)
-    ][,pop1:=pop+births-deaths][,stage:="reclass"]
-    final.summ = rbind(final.summ,final.summX)
-    print(final.summ)
-    
-    print("35")
-    final.reg.summX <-final.temp[region=="35"][,lapply(.SD,sum),.SDcols = vars,by=.(Time)][,pop1:=pop+births-deaths][,stage:="reclass"]
-    final.reg.summ = rbind(final.reg.summ,final.reg.summX)
-    print(final.reg.summ)
-    }
+  # stop("..")
+  # final.temp.end[region==11 & agest==10 &sex=="f",]
+  # final.temp[region==11 & agest==5&sex=="f",.(sum(pop),sum(pop1),sum(deaths),sum(edutran),sum(idom),sum(odom))]
+  
+  final.temp.end[region==22 & agest==10 &Time==2015 &sex=="f",]
   
   }#loop of iper
 }#for single country 
@@ -271,6 +279,11 @@ for(ifile in dttosave) {
   xxx<-get(ifile);save(xxx,file=paste(path_scen,ifile,".RData",sep=""))
   # if(username=="kc") save(xxx,file=paste(pdrive_path_scen,ifile,".RData",sep=""))
 }  
+
+
+final[region==11 & agest==10&Time == 2010 &sex=="f",sum(edutran)]
+
+final[pop<0 & Time == 2015]
 
 
 #quick pyramid
