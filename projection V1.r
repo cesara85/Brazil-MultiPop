@@ -1,11 +1,12 @@
 # Projection 
- 
+
 icheck = T #to collect the sums at each stage (sx_propedu, mig,migC,migfinal,)
 id.cols = c("Time","region","sex","agest","edu") #also used during the projection
 iper = initime
 
 #main result file
 popdt[is.na(pop),pop:=0]
+
 final = copy(popdt)[,`:=`(births=0,
                           pop1=0, #final pop
                           idom=0,
@@ -19,7 +20,7 @@ final[Time==2010,by=.(agest),sum(pop)]
 
 final[Time==2010,sum(pop)]
 # 190,755,799
-
+final[Time==2010,by=.(edu,agest),sum(pop)] %>% spread(edu,V1)
 #clean the path_scen
 unlink(dir(path_scen,full.names = T))
 
@@ -42,6 +43,7 @@ ireg = regions;{ #to run for all regions at the same time
       
     final.temp = copy(final)[Time == iper&region%in%ireg]# chose an many regions you want
     
+    
     # final.temp[,sum(pop),by=.(agest,edu)]%>%spread(edu,V1)
     # final.temp[,sum(pop)]
     
@@ -58,22 +60,25 @@ ireg = regions;{ #to run for all regions at the same time
     #eduprop [new transitions]
     
     # time and age as initime+5, corrected to match initime
+    #ieduprop <- copy(propdt)[Time==iper+5 & region%in%ireg][
+    #  ,`:=`(Time=Time-5,agest=agest-5)][prop<0,prop:=0.001][
+    #  ,.(edu=edu,prop=prop.table(prop)),by=setdiff(id.cols,"edu")]
     ieduprop <- copy(propdt)[Time==iper+5 & region%in%ireg][
       ,`:=`(Time=Time-5,agest=agest-5)][prop<0,prop:=0.001][
       ,.(edu=edu,prop=prop.table(prop)),by=setdiff(id.cols,"edu")]
 
     #check
     # ieduprop[,by=.(region,sex,agest),sum(prop)][,V1]
-     # ieduprop%>%spread(edu,prop)
+     # ieduprop%>%spread(edu,prop) %>% mutate(sum = rowSums(.[5:10]))
     
      # xx <- final.temp[sex=="f"&agest==15,.(edu,pop)][,prop:=prop.table(.SD$pop)]
     
     #agr pop 
     pop1agr <- copy(final.temp)[agest%in%10:25][,.(pop1=sum(pop1)),by=setdiff(id.cols,"edu")]
-    pop1agr[,sum(pop1)]#67,988,027
+    pop1agr[,sum(pop1)]#66,454,709
     #merge
     ieduprop[pop1agr,on=setdiff(id.cols,"edu"),`:=`(pop1=pop1*prop)]
-    ieduprop[,sum(pop1)]#67,988,027
+    ieduprop[,sum(pop1)]#66,454,709
     
     #check (0.9999??)
     #bring pop1edu into pop1 (update)    
@@ -113,7 +118,7 @@ ireg = regions;{ #to run for all regions at the same time
        #Bilateral implementation
     #-5 to be added to newborns
     # stop("xxxa;'dsflkj")   
-    pop.origin = copy(final.temp)[agest>-5&agest<=75,.(region,Time,sex,edu,agest,pop1)]
+    pop.origin = copy(final.temp)[agest>=5&agest<=90,.(region,Time,sex,edu,agest,pop1)]#migration from 5 to 90
        migOD_AG = pop.origin #added
        migOD_AG[,dom.ssp:=1]#added
        migOD_AG[,mrate.pred:=0] #added
@@ -124,10 +129,21 @@ ireg = regions;{ #to run for all regions at the same time
        dom.temp[,odom:=pop1*mrate.pred]
        dom.temp[,sum(odom)] #check = international migration equal to zero
        
-       odom.temp <- copy(odmrdt)[,by=.(Time,region,sex,agest,edu),.(odom=sum(.SD$outmigfinal))]
+       #odom.temp <- copy(odmrdt)[,by=.(Time,region,sex,agest,edu),.(odom=sum(.SD$value))]
        ###idom.temp <- copy(dom.temp)[,by=.(Time,dest,sex,agest,edu),.(idom=sum(.SD$odom))
-       ###                           ][,setnames(.SD,"dest","region")] #take destination out. Just considering. #line below used instead.
-       idom.temp <- copy(idmrdt)[,by=.(Time,region,sex,agest,edu),.(idom=sum(.SD$inmigfinal))]
+       ###                           ][,setnames(.SD,"dest","region")] #take destination out. #line below used instead.
+       #idom.temp <- copy(idmrdt)[,by=.(Time,region,sex,agest,edu),.(idom=sum(.SD$value))]
+       
+    # Migration rates applied to the entire period. After outmigration estimations, in-migration is calculated and then adjusted to match out-mgration levels.
+    # Out-migration considered first to ensure non-negative populations.
+       odom.temp <- copy(odmrdt)[,by=.(Time,region,sex,agest,edu),.(odom.rate=sum(.SD$value))]
+       odom.temp = merge(pop.origin,odom.temp,allow.cartesian=TRUE)
+       odom.temp[,odom:=pop1*odom.rate]
+       idom.temp <- copy(idmrdt)[,by=.(Time,region,sex,agest,edu),.(idom.rate=sum(.SD$value))]
+       idom.temp = merge(pop.origin,idom.temp,allow.cartesian=TRUE)
+       idom.temp[,idom:=pop1*idom.rate]
+       idom.temp[,adjust.rate:=(odom.temp[,sum(odom)]/idom.temp[,sum(idom)])] #
+       idom.temp[,idom:=pop1*idom.rate*adjust.rate]
        
        
        final.temp[odom.temp,on=id.cols,odom:=i.odom]
@@ -239,82 +255,111 @@ ireg = regions;{ #to run for all regions at the same time
   
   }#loop of iper
 }#for single country 
+
+# save final 
 {
 
-  
-final <- final[pop==-999,pop:=-0.00001]#for year 2100 births
-save(final,file=paste0(path_scen,"res_",iscen_fullname,".RData",sep=""))
-
-vars = setdiff(names(final),id.cols)
-# [region=="reg108"]
-final.summ.temp <-final[,lapply(.SD,sum,na.rm=T),.SDcols = vars,by=.(Time)][
-  ,`:=`(pop=pop-births)][,pop1:=NULL] #births are already in 'pop'
-print("get absolute edu transitions")
-
-DT::datatable(data = round(final.summ.temp,0))
-
-
-
-
-if(final.summ.temp[,sum(emi)]==0){
-  print(round(final.summ.temp[,edutran:=NULL][,emi:=NULL][,imm:=NULL],0))
-} else {
-  print(round(final.summ.temp[,edutran:=NULL],0))
-}
-
-library(gt)
-round(final.summ.temp,0)%>%
-  gt() %>%
-  tab_header(
-    title = iscen_fullname,
-    # subtitle = glue::glue("{Global Population} to {}")
-  )%>% gtsave(paste0("../results/summary table",iscen_fullname,".png"))
-
-#save results
-# username = "kc"
-#these files will be loaded for running different scenarios
-
-#save dttosave
-for(ifile in dttosave) {
-  xxx<-get(ifile);save(xxx,file=paste(path_scen,ifile,".RData",sep=""))
-  # if(username=="kc") save(xxx,file=paste(pdrive_path_scen,ifile,".RData",sep=""))
-}  
-
-
-final[region==11 & agest==10&Time == 2010 &sex=="f",sum(edutran)]
-
-final[pop<0 & Time == 2015]
-
-
-final[Time==2015,by=.(agest),.(pop=sum(pop))]
-
-
-#quick pyramid
-if(F){
-  # final
-  dir(path_scen)
-  dir(path_scen,pattern = "res_")
-  # load(file=paste(path_scen,"res_",iscen_fullname,as.numeric(Sys.time()),".RData",sep=""))
-  final<-final[,scen:="Med"][Time<2096]
-  source("funstack from mcbm.r")
-  regions
-  ireg = "IN.MH_urban"#regions[1]
-  icnt =  ireg
-  
-  # function(figval,ivar,iage,isex,iregions,icnt,itob,iiscen,ipropgraph=F,iscale=1,ireg=ireg)
-  
-  ggpyr2011<-funpyrwrapper_mcbm(figval = copy(final),
-                           ivar="pop",
-                           iTime=2011,
-                           iiscen="Med",#can be deleted
-                           iscale=1000)
-  ggpyr2011
-  ggpyr.col<-funpyrwrapper_mcbm(figval = copy(final),
-                                ivar="pop",
-                                iTime = unique(final$Time),
-                                iiscen="Med",#can be deleted
-                                iscale=1000)
-  ggpyr.col
-}
+## basic checks
+    final[agest!=-5,by=.(Time),sum(pop)]
+    final[pop<0,by=.(Time),sum(pop)]
+#   #births
+    final[,by=.(Time),sum(births)]
+    TFRcheck<-final[agest%in% 15:45,by=.(Time,agest),.(births=sum(births))]
+    TFRcheckw <- final[agest%in% 15:45 & sex =="f",by=.(Time,agest),.(popf=sum(pop))]
+    TFRcheck %<>% 
+      mutate(popf = TFRcheckw$popf, asfr=births/5/popf) %>%
+      group_by(Time) %>% reframe(TFR=sum(asfr)*5)
+    setDT(TFRcheck)
+    TFRcheck[,by=.(Time),TFR]
+    
+#   #deaths
+    final[,by=.(Time),sum(deaths)]#abs deaths
+    final[,by=.(Time),1000*sum(deaths)/5/sum(pop)]#CMR
+#   migration
+    final[,by=.(Time),sum(idom)]-final[,by=.(Time),sum(odom)]
+#   #eduprop
+#   educheck<-final 
+#   setDT(educheck)
+#   educheck[agest%in%-5:10,edu:="Under 15"]
+#   educheck[,by=.(Time,edu),sum(pop)] %>% 
+#   group_by(Time) %>%  filter(Time==2060) %>% 
+#     mutate(prop=V1/sum(V1)) %>% ungroup()
+#   #compare with WCDE
+#   Brazil_WCDE <- get_wcde(indicator = "pop",  
+#                           country_name = "Brazil", 
+#                           pop_age = "all", 
+#                           pop_sex = "both",
+#                           pop_edu = "six",
+#                           scenario = c(1,2,3))
+#   setDT(Brazil_WCDE)
+#   Brazil_WCDE_edu <- Brazil_WCDE[scenario==2& year%in%2010:2060,by=.(year,education),sum(pop)] #wcde
+#   Brazil_WCDE_edu %>% group_by(year) %>% filter(year==2060) %>% 
+#     mutate(prop=V1/sum(V1)) %>% ungroup()
+#   
+# final <- final[pop==-999,pop:=-0.00001]#for year 2100 births
+# save(final,file=paste0(path_scen,"res_",iscen_fullname,".RData",sep=""))
+# 
+# vars = setdiff(names(final),id.cols)
+# # [region=="reg108"]
+# final.summ.temp <-final[,lapply(.SD,sum,na.rm=T),.SDcols = vars,by=.(Time)][
+#   ,`:=`(pop=pop-births)][,pop1:=NULL] #births are already in 'pop'
+# print("get absolute edu transitions")
+# 
+# DT::datatable(data = round(final.summ.temp,0))
+# 
+# 
+# 
+# 
+# if(final.summ.temp[,sum(emi)]==0){
+#   print(round(final.summ.temp[,edutran:=NULL][,emi:=NULL][,imm:=NULL],0))
+# } else {
+#   print(round(final.summ.temp[,edutran:=NULL],0))
+# }
+# 
+# library(gt)
+# round(final.summ.temp,0)%>%
+#   gt() %>%
+#   tab_header(
+#     title = iscen_fullname,
+#     # subtitle = glue::glue("{Global Population} to {}")
+#   )%>% gtsave(paste0("../results/summary table",iscen_fullname,".png"))
+# 
+# #save results
+# # username = "kc"
+# #these files will be loaded for running different scenarios
+# 
+# #save dttosave
+# for(ifile in dttosave) {
+#   xxx<-get(ifile);save(xxx,file=paste(path_scen,ifile,".RData",sep=""))
+#   # if(username=="kc") save(xxx,file=paste(pdrive_path_scen,ifile,".RData",sep=""))
+# }  
+#
+# #quick pyramid
+# if(F){
+#   # final
+#   dir(path_scen)
+#   dir(path_scen,pattern = "res_")
+#   # load(file=paste(path_scen,"res_",iscen_fullname,as.numeric(Sys.time()),".RData",sep=""))
+#   final<-final[,scen:="Med"][Time<2096]
+#   source("funstack from mcbm.r")
+#   regions
+#   ireg = "IN.MH_urban"#regions[1]
+#   icnt =  ireg
+#   
+#   # function(figval,ivar,iage,isex,iregions,icnt,itob,iiscen,ipropgraph=F,iscale=1,ireg=ireg)
+#   
+#   ggpyr2011<-funpyrwrapper_mcbm(figval = copy(final),
+#                            ivar="pop",
+#                            iTime=2011,
+#                            iiscen="Med",#can be deleted
+#                            iscale=1000)
+#   ggpyr2011
+#   ggpyr.col<-funpyrwrapper_mcbm(figval = copy(final),
+#                                 ivar="pop",
+#                                 iTime = unique(final$Time),
+#                                 iiscen="Med",#can be deleted
+#                                 iscale=1000)
+#   ggpyr.col
+# }
 }#End Projection
-# See "Report WIC3.Rmd"
+# # See "Report WIC3.Rmd"
