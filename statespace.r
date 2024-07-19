@@ -18,8 +18,8 @@
   nsex = length(sexnames)
   sexcodes = 1:2
   
-  initime = 2010 #will change later 
-  fintime = 2060
+  initime = 2022 #will change later 
+  fintime = 2062
   ts = 5 #timestep
   nper = (fintime-initime)/ts
   pers = seq(initime,fintime,by=ts)
@@ -59,9 +59,7 @@
   # ) 
   # rownames(vardims) <- input.vars                        
   
-  
-  
-  output.vars <- c("pop",
+    output.vars <- c("pop",
                    "dx",
                    "emi",#"emires",
                    "imm",#"immres",
@@ -99,13 +97,13 @@
 
 
 {#create folders
-  cc.dir.val = "../data"
+  cc.dir.val = "data"
   if(length(grepl(pattern = "data",x = dir("../")))==0){
     dir.create(path=cc.dir.val)
   }
   
   #create an results folder to save indicators graphs
-  cc.dir.val = "../results"
+  cc.dir.val = "results"
   if(length(grep(pattern = "results",x = dir("../")))==0){
     dir.create(path=cc.dir.val)
   }

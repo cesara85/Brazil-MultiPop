@@ -7,7 +7,7 @@ iper = initime
 #main result file
 popdt[is.na(pop),pop:=0]
 
-final = copy(popdt)[,`:=`(births=0,
+final2 = copy(popdt)[,`:=`(births=0,
                           pop1=0, #final pop
                           idom=0,
                           odom=0,
@@ -16,11 +16,11 @@ final = copy(popdt)[,`:=`(births=0,
                           edutran=0,
                           deaths=0)]
 #check [see non-negative values for 0-80]
-final[Time==2010,by=.(agest),sum(pop)]
+final2[Time==2022,by=.(agest),sum(pop)]
 
-final[Time==2010,sum(pop)]
-# 190,755,799
-final[Time==2010,by=.(edu,agest),sum(pop)] %>% spread(edu,V1)
+final2[Time==2022,sum(pop)]
+# 203,080,756
+final2[Time==2022,by=.(edu,agest),sum(pop)] %>% spread(edu,V1)
 #clean the path_scen
 unlink(dir(path_scen,full.names = T))
 
@@ -29,9 +29,9 @@ unlink(dir(path_scen,full.names = T))
 ireg = regions;{ #to run for all regions at the same time
 # for(ireg in regions) {
    
-  iper = 2010
+  iper = 2022
   # iper = iper+5
-   print("Until 2060")
+   print("Until 2062")
   for (iper in seq(initime,fintime-ts,ts))
      {
     print(iper)
@@ -41,7 +41,7 @@ ireg = regions;{ #to run for all regions at the same time
     {#sx and edu
     #pop1
       
-    final.temp = copy(final)[Time == iper&region%in%ireg]# chose an many regions you want
+    final.temp = copy(final2)[Time == iper&region%in%ireg]# chose an many regions you want
     
     
     # final.temp[,sum(pop),by=.(agest,edu)]%>%spread(edu,V1)
@@ -49,12 +49,11 @@ ireg = regions;{ #to run for all regions at the same time
     
     #this way sx is not saved as a separate file [births -5 is empty]
     # final.temp[is.nan(pop),pop:=0.001] #??check this out
-    # sxdt[region==11&Time==2010&sex=="m"&agest==10]%>%spread(edu,sx)
-    
+    # sxdt[region==11&Time==2022&sex=="m"&agest==10]%>%spread(edu,sx)
+
     final.temp <- final.temp[sxdt,on=id.cols,`:=`(sx=sx,pop1=pop*sx,deaths=pop*(1-sx))]
     # final.temp[,sum(deaths)] #6,303,396 2010-2015 deaths
     # final.temp[is.na(pop1)]
-    # final.temp[region=="IN.BR_rural"&agest==0]
     if(iper < 2025) print("take care of sx edu") #we have to apply overall sx for under 15
     # final.temp[pop1 < 0 ]
     #eduprop [new transitions]
@@ -134,7 +133,7 @@ ireg = regions;{ #to run for all regions at the same time
        ###                           ][,setnames(.SD,"dest","region")] #take destination out. #line below used instead.
        #idom.temp <- copy(idmrdt)[,by=.(Time,region,sex,agest,edu),.(idom=sum(.SD$value))]
        
-    # Migration rates applied to the entire period. After outmigration estimations, in-migration is calculated and then adjusted to match out-mgration levels.
+    # Migration rates applied to the entire period. After outmigration estimations, in-migration is calculated and then adjusted to match out-migration levels.
     # Out-migration considered first to ensure non-negative populations.
        odom.temp <- copy(odmrdt)[,by=.(Time,region,sex,agest,edu),.(odom.rate=sum(.SD$value))]
        odom.temp = merge(pop.origin,odom.temp,allow.cartesian=TRUE)
@@ -229,10 +228,10 @@ ireg = regions;{ #to run for all regions at the same time
   }
   # if(iper == 2020) stop("..")
   #add in final total births initime age -5
-  final[copy(birthstot),on=id.cols,`:=`(pop=i.pop)] #pop1 will be updated later
+  final2[copy(birthstot),on=id.cols,`:=`(pop=i.pop)] #pop1 will be updated later
 
   #Update the final with pop1, births, mig, edu transition
-  final[copy(final.temp),on=id.cols,
+  final2[copy(final.temp),on=id.cols,
         `:=`(deaths=i.deaths,births=i.births,imm=i.imm,emi=i.emi,odom=i.odom,idom=i.idom,edutran=i.edutran)] #new - without popclass
   
   
@@ -245,7 +244,7 @@ ireg = regions;{ #to run for all regions at the same time
   # final.temp.end[,sum(pop)]
    
   #add end of the year population to the final
-  final[final.temp.end,on=id.cols,`:=`(pop = i.pop)]
+  final2[final.temp.end,on=id.cols,`:=`(pop = i.pop)]
   
   # stop("..")
   # final.temp.end[region==11 & agest==10 &sex=="f",]
@@ -260,12 +259,12 @@ ireg = regions;{ #to run for all regions at the same time
 {
 
 ## basic checks
-    final[agest!=-5,by=.(Time),sum(pop)]
-    final[pop<0,by=.(Time),sum(pop)]
+    final2[agest!=-5,by=.(Time),sum(pop)]
+    final2[pop<0,by=.(Time),sum(pop)]
 #   #births
-    final[,by=.(Time),sum(births)]
-    TFRcheck<-final[agest%in% 15:45,by=.(Time,agest),.(births=sum(births))]
-    TFRcheckw <- final[agest%in% 15:45 & sex =="f",by=.(Time,agest),.(popf=sum(pop))]
+    final2[,by=.(Time),sum(births)]
+    TFRcheck<-final2[agest%in% 15:45,by=.(Time,agest),.(births=sum(births))]
+    TFRcheckw <- final2[agest%in% 15:45 & sex =="f",by=.(Time,agest),.(popf=sum(pop))]
     TFRcheck %<>% 
       mutate(popf = TFRcheckw$popf, asfr=births/5/popf) %>%
       group_by(Time) %>% reframe(TFR=sum(asfr)*5)
@@ -273,93 +272,11 @@ ireg = regions;{ #to run for all regions at the same time
     TFRcheck[,by=.(Time),TFR]
     
 #   #deaths
-    final[,by=.(Time),sum(deaths)]#abs deaths
-    final[,by=.(Time),1000*sum(deaths)/5/sum(pop)]#CMR
+    final2[,by=.(Time),sum(deaths)]#abs deaths
+    final2[,by=.(Time),1000*sum(deaths)/5/sum(pop)]#CMR
 #   migration
-    final[,by=.(Time),sum(idom)]-final[,by=.(Time),sum(odom)]
-#   #eduprop
-#   educheck<-final 
-#   setDT(educheck)
-#   educheck[agest%in%-5:10,edu:="Under 15"]
-#   educheck[,by=.(Time,edu),sum(pop)] %>% 
-#   group_by(Time) %>%  filter(Time==2060) %>% 
-#     mutate(prop=V1/sum(V1)) %>% ungroup()
-#   #compare with WCDE
-#   Brazil_WCDE <- get_wcde(indicator = "pop",  
-#                           country_name = "Brazil", 
-#                           pop_age = "all", 
-#                           pop_sex = "both",
-#                           pop_edu = "six",
-#                           scenario = c(1,2,3))
-#   setDT(Brazil_WCDE)
-#   Brazil_WCDE_edu <- Brazil_WCDE[scenario==2& year%in%2010:2060,by=.(year,education),sum(pop)] #wcde
-#   Brazil_WCDE_edu %>% group_by(year) %>% filter(year==2060) %>% 
-#     mutate(prop=V1/sum(V1)) %>% ungroup()
-#   
-# final <- final[pop==-999,pop:=-0.00001]#for year 2100 births
-# save(final,file=paste0(path_scen,"res_",iscen_fullname,".RData",sep=""))
-# 
-# vars = setdiff(names(final),id.cols)
-# # [region=="reg108"]
-# final.summ.temp <-final[,lapply(.SD,sum,na.rm=T),.SDcols = vars,by=.(Time)][
-#   ,`:=`(pop=pop-births)][,pop1:=NULL] #births are already in 'pop'
-# print("get absolute edu transitions")
-# 
-# DT::datatable(data = round(final.summ.temp,0))
-# 
-# 
-# 
-# 
-# if(final.summ.temp[,sum(emi)]==0){
-#   print(round(final.summ.temp[,edutran:=NULL][,emi:=NULL][,imm:=NULL],0))
-# } else {
-#   print(round(final.summ.temp[,edutran:=NULL],0))
-# }
-# 
-# library(gt)
-# round(final.summ.temp,0)%>%
-#   gt() %>%
-#   tab_header(
-#     title = iscen_fullname,
-#     # subtitle = glue::glue("{Global Population} to {}")
-#   )%>% gtsave(paste0("../results/summary table",iscen_fullname,".png"))
-# 
-# #save results
-# # username = "kc"
-# #these files will be loaded for running different scenarios
-# 
-# #save dttosave
-# for(ifile in dttosave) {
-#   xxx<-get(ifile);save(xxx,file=paste(path_scen,ifile,".RData",sep=""))
-#   # if(username=="kc") save(xxx,file=paste(pdrive_path_scen,ifile,".RData",sep=""))
-# }  
-#
-# #quick pyramid
-# if(F){
-#   # final
-#   dir(path_scen)
-#   dir(path_scen,pattern = "res_")
-#   # load(file=paste(path_scen,"res_",iscen_fullname,as.numeric(Sys.time()),".RData",sep=""))
-#   final<-final[,scen:="Med"][Time<2096]
-#   source("funstack from mcbm.r")
-#   regions
-#   ireg = "IN.MH_urban"#regions[1]
-#   icnt =  ireg
-#   
-#   # function(figval,ivar,iage,isex,iregions,icnt,itob,iiscen,ipropgraph=F,iscale=1,ireg=ireg)
-#   
-#   ggpyr2011<-funpyrwrapper_mcbm(figval = copy(final),
-#                            ivar="pop",
-#                            iTime=2011,
-#                            iiscen="Med",#can be deleted
-#                            iscale=1000)
-#   ggpyr2011
-#   ggpyr.col<-funpyrwrapper_mcbm(figval = copy(final),
-#                                 ivar="pop",
-#                                 iTime = unique(final$Time),
-#                                 iiscen="Med",#can be deleted
-#                                 iscale=1000)
-#   ggpyr.col
+    final2[,by=.(Time),sum(idom)]-final2[,by=.(Time),sum(odom)]
+
 # }
 }#End Projection
 # # See "Report WIC3.Rmd"

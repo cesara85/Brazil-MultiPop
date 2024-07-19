@@ -42,10 +42,17 @@
 # deterministic: age_transition x no_sex_transition 
 # New_members: births [27*7*1*6 = 1134]
 
-source("statespace.r")#empty if baseline is F, then the statespace can already take the baseline value
+#SSP1
+source("../Brazil-Multistate-projections/statespace.r") 
+source("../Brazil-Multistate-projections/fillstatespace1.r")
+source("../Brazil-Multistate-projections/projectionssp1.r")
 
-source("fillstatespace.r")#
+#SSP2
+source("../Brazil-Multistate-projections/statespace.r") 
+source("../Brazil-Multistate-projections/fillstatespace2.r")#
+source("../Brazil-Multistate-projections/projectionssp2.r")
 
-#transitions
-source("projection V1.r")
-# See "Report WIC3.Rmd"
+#SSP3
+source("../Brazil-Multistate-projections/statespace.r") 
+source("../Brazil-Multistate-projections/fillstatespace3.r")#
+source("../Brazil-Multistate-projections/projectionssp3.r")

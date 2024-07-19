@@ -24,7 +24,7 @@ id.cols <- names(popdt)[1:5]
   
 # base-year population to be update to 2022 - census results
 #popdt
-data1<-read_csv("data/population/brazil_pop_2022.csv")
+data1<-read_csv("../data/population/brazil_pop_2022.csv")
 data1 %<>% 
   group_by(region,agest,sex,edu) %>% 
   summarise(pop=sum(popedu)) %>% 
@@ -32,24 +32,41 @@ data1 %<>%
          region = as.character(region)) %>%
   select(region, Time, sex, edu, agest, pop)
 
+# adjust for WPP 2024  of Brazil
+data2<-data1 %>% 
+   group_by(agest,sex,Time) %>% 
+   summarise(pop=sum(pop))
+wpp2022brazil <- read_excel("../data/population/wpp2022brazil.xlsx")
+pop_adj <- left_join(data2,wpp2022brazil, by = join_by(agest, sex))
+setDT(pop_adj)
+ # pop_adj[,sum(pop.x)] 203,080,756
+ # pop_adj[,sum(pop.y)] 210,306,415
+pop_adj[,prop:=pop.y/pop.x]
+data1<-left_join(data1, pop_adj, by= join_by(agest,sex))
+setDT(data1)
+data1[,pop:=pop*prop]
+# data1[,sum(pop)] 210306415
+data1 %<>% 
+  mutate(Time = 2022) %>% 
+  select(region, Time, sex, edu, agest, pop)
 popdt<-left_join(popdt, data1)
 setDT(popdt)
 # check
 # popdt[Time==2022,sum(pop, na.rm=TRUE)]
-# popdt[Time==2022&region=="35",by=.(edu),sum(pop)]
+popdt[Time==2022&region=="35",by=edu,sum(pop, na.rm=TRUE)]
 
-# write_csv(popdt,"data/population/popdt_filled.csv")
+# write_csv(popdt,"../data/population/popdt_filled.csv")
 
 # sxdt --------------------------------------------------------------------
 ##eduspecific nsx
 
-sx_input<-read_csv("data/mortality/full_mortality_2057v2.csv")
+sx_input<-read_csv("../data/mortality/mortality2022_2062.csv")
 setDT(sx_input)
 sx_input[age==0,age:=-5][age==1,age:=0][sx>=1,sx:=1]
 sx_input[sex=="female",sex:="f"][sex=="male",sex:="m"]
 sx_input[is.na(edu)&age%in%-5:10,edu:="e1"]
 
- # sx_input[area=="RO"&Time==2022&scenario==2&edu=="e1"]
+# sx_input[area=="RO"&Time==2022&scenario==2&edu=="e1"]
 sx_input %<>%
    mutate(region = case_when(area=="RO"~11,area=="AC"~12,area=="AM"~13,area=="RR"~14,area=="PA"~15,area=="AP"~16,area=="TO"~17,
                              area=="MA"~21,area=="PI"~22,area=="CE"~23,area=="RN"~24,area=="PB"~25,area=="PE"~26,area=="AL"~27,area=="SE"~28,area=="BA"~29,
@@ -58,7 +75,7 @@ sx_input %<>%
                              area=="MS"~50,area=="MT"~51,area=="GO"~52,area=="DF"~53)) %>%
    rename(agest=age) %>%
    mutate(region = as.character(region)) %>%
-   filter(scenario==3) %>% 
+   filter(scenario==1) %>% 
    select(region, Time, sex, edu, agest, sx)
 sxdt <- left_join(sxdt,sx_input, by= join_by(region, Time, sex, edu, agest))
 
@@ -68,13 +85,11 @@ setDT(sxdt)
 sx_e1 <- sxdt[edu == "e1", .(sex, agest, region, Time, sx)]
 sxdt[is.na(sx), sx := sx_e1[.SD, on = .(sex, agest, region, Time), x.sx]]
 
-sxdt[region=="11"&Time==2037] %>% spread(edu,sx)
-
 # asfrdt ------------------------------------------------------------------
 
-asfr_input<-read_csv("data/fertility/ASFR2022_2062.csv")
+asfr_input<-read_csv("../data/fertility/ASFR2022_2062.csv")
 asfr_input %<>%
-  filter(scenario==3) %>% 
+  filter(scenario==1) %>% 
   rename(agest=age) %>% mutate(agest = as.numeric(agest),
                                region = as.character(region)) %>%
   select(region, Time, edu, agest, asfr)
@@ -84,7 +99,7 @@ setDT(asfrdt)
 setDT(asfr_input)
 
 # asfr_input[region==11&Time==2022&edu=="e1"][,sum(asfr)/200]#tfr
-write_csv(asfrdt,"data/fertility/asfrdt_filled.csv")
+write_csv(asfrdt,"../data/fertility/asfrdt_filled.csv")
 
     # #Note: for the first few periods, population by mother's edu is not available
     # #asfrs (7)
@@ -114,10 +129,10 @@ write_csv(asfrdt,"data/fertility/asfrdt_filled.csv")
     srbdt <- srbdt[,srb:=1.05] #check this with the UN values
     
 # propdt ------------------------------------------------------------------
-prop_input<-read_csv("data/education/education2022_65.csv")
+prop_input<-read_csv("../data/education/education2022_65.csv")
 
 prop_input %<>%
-  filter(scenario==3) %>% 
+  filter(scenario==1) %>% 
   mutate(sex= case_when(sex=="Female"~"f", sex=="Male"~"m")) %>% 
   rename(agest=age, Time = year, edu = education) %>% 
   mutate(agest = as.numeric(agest),
@@ -133,53 +148,25 @@ setDT(propdt)
 # propdt[,by=.(region,Time,sex,agest),sum(prop)][V1!=1][,V1]
 # propdt[,by=.(region,Time,sex,agest),prop]
 
-write_csv(propdt,"data/education/propdt_filled.csv")
+write_csv(propdt,"../data/education/propdt_filled.csv")
 
 
 # migration ---------------------------------------------------------------
-inmig_input<-read_csv("data/migration/inmig_ratesv2.csv")
-outmig_input<-read_csv("data/migration/outmig_ratesv2.csv")
+inmig_input<-read_csv("../data/migration/inmig_rates2022.csv")
+outmig_input<-read_csv("../data/migration/outmig_rates2022.csv")
+#ssp1
 
-#ssp3
-inmig_input %<>% filter(Time>=2020) %>% 
-  mutate(region = as.character(area),
-         Time=Time+2) %>%
-  select(region,Time,sex,edu,agest,value)
-outmig_input %<>% filter(Time>=2020) %>% 
-  mutate(region = as.character(area),
-         Time=Time+2) %>%
-  select(region,Time,sex,edu,agest,value)
-
-cenário_alternativo <- 3
 setDT(inmig_input)
-# Replicar o valor do ano inicial para todos os anos
-if (cenário_alternativo == 3) {
-  # Obtendo os valores de outmigfinal e inmigfinal do ano inicial (2022)
-  valores_iniciais <- inmig_input[Time == 2022, "value"]
-  # Atribuindo esses valores para todos os anos
-  inmig_input[, c("value") := lapply(valores_iniciais, rep, length.out = .N), by = .(Time)]
-}
-
 setDT(outmig_input)
-# Replicar o valor do ano inicial para todos os anos
-if (cenário_alternativo == 3) {
-  # Obtendo os valores de outmigfinal e inmigfinal do ano inicial (2022)
-  valores_iniciais <- outmig_input[Time == 2022, "value"]
-  # Atribuindo esses valores para todos os anos
-  outmig_input[, c("value") := lapply(valores_iniciais, rep, length.out = .N), by = .(Time)]
-}
-## ssp 1
-#inmig_input %<>% filter(Time>=2020) %>% 
-#  mutate(region = as.character(area),
-#         Time=Time+2,
-#         value=0.9*value) %>%
-#  select(region,Time,sex,edu,agest,value)
+inmig_input %<>%
+  mutate(region = as.character(area),
+         value=0.9*value)%>%
+  select(region,Time,sex,edu,agest,value)
 
-#outmig_input %<>% filter(Time>=2020) %>% 
-#  mutate(region = as.character(area),
-#         Time=Time+2,
-#         value=0.9*value) %>%
-#  select(region,Time,sex,edu,agest,value)
+outmig_input %<>% 
+  mutate(region = as.character(area),
+         value=0.9*value) %>% 
+  select(region,Time,sex,edu,agest,value)
 
 idmrdt <- left_join(idmrdt, inmig_input, by = join_by(region, Time, sex, edu, agest))
 idmrdt[is.na(value),value:=0]
@@ -192,8 +179,8 @@ odmrdt[is.na(value),value:=0][value>=1,value:=1]
 ls(pattern = "dt$")
 
 
-write_csv(idmrdt,"data/migration/idmrdt_filled.csv")
-write_csv(odmrdt,"data/migration/odmrdt_filled.csv")
+write_csv(idmrdt,"../data/migration/idmrdt_filled.csv")
+write_csv(odmrdt,"../data/migration/odmrdt_filled.csv")
 
 # NON Baseline ------------------------------------------------------------
 
